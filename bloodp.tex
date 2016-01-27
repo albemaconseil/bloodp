@@ -1,0 +1,409 @@
+\documentclass[a4paper,10pt]{article}
+\usepackage{geometry}
+\geometry{
+ margin=15mm
+}
+% for dvipdfm:
+%\def\pgfsysdriver{pgfsys-dvipdfm.def}
+\usepackage{pgfplots}
+\usepackage{pgfplotstable}
+%\usepackage{booktabs}
+%\usepackage{array}
+\usepackage{colortbl}
+\usepackage{xtab}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\rfoot{\thepage}
+\cfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+\ifdefined \mycsv \else
+\errmessage{Please run with : pdflatex " def mycsv cvsfile input bloodp.tex"}
+%Please run with : pdflatex "\def\mycsv{cvsfile.csv}\def\mylang{fr}\input{bloodp.tex}"
+\fi
+
+\ifdefined \myname \else
+\def\myname{}
+\fi
+
+\ifdefined \mylang \else
+\def\mylang{en}
+\fi
+\def\mylangen{en}
+\def\mylangfr{fr}
+\ifx\mylang\mylangfr
+\def\mylangpulse{Pouls}
+\def\mylangpermin{/min}
+\def\mylangavg{moy}
+%\def\mylangmsr{mes}
+\def\mylangmsr{ }
+\def\mylangsys{Sys}
+\def\mylangdia{Dia}
+\def\mylangdate{Date}
+\def\mylangtyp{Type}
+\def\mylangmmhg{mmHg}
+\def\mylangpress{Pression art\'{e}rielle}
+\def\mylangpressmorning{Pression art\'{e}rielle matin}
+\def\mylangpressevening{Pression art\'{e}rielle soir}
+\def\mylangfound{1}
+\fi
+\ifdefined \mylangfound \else
+\def\mylang{en}
+\fi
+\ifx\mylang\mylangen
+\def\mylangpulse{Pulse}
+\def\mylangpermin{/min}
+\def\mylangavg{avg}
+\def\mylangmsr{ }
+\def\mylangsys{Sys}
+\def\mylangdia{Dia}
+\def\mylangdate{Date}
+\def\mylangtyp{Type}
+\def\mylangmmhg{mmHg}
+\def\mylangpress{Blood Pressure}
+\def\mylangpressmorning{Morning Blood Pressure}
+\def\mylangpressevening{Evening Blood Pressure}
+\fi
+
+\pgfplotsset{compat=1.12}% <-- moves axis labels near ticklabels (respects tick label widths)
+\usetikzlibrary{pgfplots.dateplot}
+
+\pgfplotsset{
+    discard if not/.style 2 args={
+        x filter/.code={
+            \edef\tempa{\thisrow{#1}}
+            \edef\tempb{#2}
+            \ifx\tempa\tempb
+            \else
+                \def\pgfmathresult{inf}
+            \fi
+        }
+    }
+}
+\pgfplotsset{
+    discard if /.style 2 args={
+        x filter/.code={
+            \edef\tempa{\thisrow{#1}}
+            \edef\tempb{#2}
+            \ifx\tempa\tempb
+                \def\pgfmathresult{inf}
+            \fi
+        }
+    }
+}
+\pgfplotsset{
+    discardAvg if not/.style 2 args={%
+        x filter/.code={%
+            \edef\tempa{\thisrow{#1}}
+            \edef\tempb{#2}
+            \edef\tempc{\thisrow{Typ}}
+            \edef\tempd{msr}
+            \ifx\tempa\tempb
+                \ifx\tempc\tempd
+                \else
+                    \def\pgfmathresult{inf}
+                \fi
+            \else
+                \def\pgfmathresult{inf}
+            \fi
+        }
+    }
+}
+\pgfplotsset{
+    discardAvg if/.style 2 args={%
+        x filter/.code={%
+            \edef\tempa{\thisrow{#1}}
+            \edef\tempb{#2}
+            \edef\tempc{\thisrow{Typ}}
+            \edef\tempd{msr}
+            \ifx\tempa\tempb
+                \def\pgfmathresult{inf}
+            \else
+                \ifx\tempc\tempd
+                \else
+                    \def\pgfmathresult{inf}
+                \fi
+            \fi
+        }
+    }
+}
+\pgfplotsset{
+    discardMsr if not/.style 2 args={%
+        x filter/.code={%
+            \edef\tempa{\thisrow{#1}}
+            \edef\tempb{#2}
+            \edef\tempc{\thisrow{Typ}}
+            \edef\tempd{avg}
+            \ifx\tempa\tempb
+                \ifx\tempc\tempd
+                \else
+                    \def\pgfmathresult{inf}
+                \fi
+            \else
+                \def\pgfmathresult{inf}
+            \fi
+        }
+    }
+}
+\pgfplotsset{
+    discardMsr if/.style 2 args={%
+        x filter/.code={%
+            \edef\tempa{\thisrow{#1}}
+            \edef\tempb{#2}
+            \edef\tempc{\thisrow{Typ}}
+            \edef\tempd{avg}
+            \ifx\tempa\tempb
+                \def\pgfmathresult{inf}
+            \else
+                \ifx\tempc\tempd
+                \else
+                    \def\pgfmathresult{inf}
+                \fi
+            \fi
+        }
+    }
+}
+\pgfplotsset{filter discard warning=false}
+\pgfplotstableset{
+begin table=\begin{xtabular},
+end table=\end{xtabular},
+}
+\makeatletter
+\pgfplotstableset{
+    discardt if not/.style 2 args={
+        row predicate/.code={
+            \def\pgfplotstable@loc@TMPd{\pgfplotstablegetelem{##1}{#1}\of}
+            \expandafter\pgfplotstable@loc@TMPd\pgfplotstablename
+            \edef\tempa{\pgfplotsretval}
+            \edef\tempb{#2}
+            \ifx\tempa\tempb
+            \else
+                \pgfplotstableuserowfalse
+            \fi
+        }
+    }
+}
+\makeatother
+\newif\ifpm
+\newif\ifam
+\pmtrue
+\amtrue
+
+\newcounter{ctPm}
+\setcounter{ctPm}{0}
+\newcounter{ctAm}
+\setcounter{ctAm}{0}
+  \pgfplotstableread[col sep=semicolon,
+    columns/Date/.style={string type}
+  ]{\mycsv}\loadedcsv
+  \pgfplotstableforeachcolumnelement{AmPm}\of\loadedcsv\as\cell{%
+    \edef\temppm{pm}
+    \ifx\cell\temppm\addtocounter{ctPm}{1}%
+    \else\addtocounter{ctAm}{1}%
+    \fi
+  }
+\ifnum\thectAm=0
+  \pmfalse
+  \amfalse
+\fi
+\ifnum\thectPm=0
+  \pmfalse
+  \amfalse
+\fi
+\def\dateof#1{%
+    \begingroup
+    \edef\@tempa{#1}%
+    \expandafter\endgroup
+    \expandafter\twodateof\@tempa\relax
+}
+\def\twodateof#1 #2\relax{#1}
+\pgfplotstablegetelem{0}{Date}\of{\loadedcsv}
+\def\beginDate{\dateof{\pgfplotsretval}}
+\edef\beginD1{\pgfplotsretval}%
+\pgfplotstableforeachcolumnelement{Date}\of\loadedcsv\as\cell{%
+    \edef\endD1{\cell}
+  }
+\def\endDate{\dateof{\endD1}}
+\edef\mydts{\beginD1~--~\endD1}%
+\lfoot{\myname}
+\cfoot{\mydts}
+%\lfoot{}
+\begin{document}
+\twocolumn[{%
+  \centering
+%
+%beginDate=\beginDate
+%
+%endDate=\endDate
+%
+%ctAm=\thectAm
+%
+%ctPm=\thectPm
+%
+  \begin{tikzpicture}
+    \pgfplotsset{every axis legend/.append style={
+        at={(0.5,1.03)},
+        anchor=south west}}
+    \begin{axis}[
+      width=0.9\textwidth,
+      height=0.40\textwidth,
+      title=\mylangpress,
+      title style={xshift=-2cm},
+      legend columns=-1,
+      date coordinates in=x,
+      %xticklabel style={rotate=90,anchor=near xticklabel},
+      xticklabel style={rotate=45,anchor=east},
+      %xticklabel=\day-\month\space\hour:\minute,
+      xticklabel=\day-\month,
+      date ZERO=2015-11-01,
+      %xtick=data,
+      extra y tick style={grid=major},
+      extra y ticks={85,135},
+      extra y tick labels={},
+      ytick={60,80,100,120,140,160},
+      ylabel=\mylangmmhg]
+      \addplot+[color=purple,only marks,
+      	mark=o,discard if not={Typ}{msr}
+      ] table[x=Date,y=Sys,col sep=semicolon] {\mycsv};
+      \addplot+[color=purple,mark=none,discard if not={Typ}{avg}
+      ] table[x=Date,y=Sys,col sep=semicolon] {\mycsv};
+      \addplot+[color=blue,only marks,mark=square,discard if not={Typ}{msr}] table[x=Date,y=Dia,col sep=semicolon] {\mycsv};
+      \addplot+[color=blue,mark=none,discard if not={Typ}{avg}] table[x=Date,y=Dia,col sep=semicolon] {\mycsv};
+      \legend{\mylangsys,(\mylangavg),\mylangdia,(\mylangavg)}
+    \end{axis}
+  \end{tikzpicture}
+  \ifam
+  \begin{tikzpicture}
+    \pgfplotsset{every axis legend/.append style={
+        at={(0.5,1.03)},
+        anchor=south west}}
+    \begin{axis}[
+      width=0.9\textwidth,
+      height=0.40\textwidth,
+      title=\mylangpressmorning,
+      title style={xshift=-2cm},
+      legend columns=-1,
+      date coordinates in=x,
+      xticklabel style={rotate=45,anchor=east},
+      xticklabel=\day-\month,
+      date ZERO=2015-11-01,
+      extra y tick style={grid=major},
+      extra y ticks={85,135},
+      extra y tick labels={},
+      ytick={60,80,100,120,140,160},
+      ylabel=\mylangmmhg]
+      \addplot+[color=purple,only marks,
+      	mark=o,discardAvg if not={AmPm}{am}
+      ] table[x=Date,y=Sys,col sep=semicolon] {\mycsv};
+      \addplot+[draw=none, forget plot,,
+      	mark=none,discardAvg if not={AmPm}{pm}
+      ] table[x=Date,y=Sys,col sep=semicolon] {\mycsv};
+      \addplot+[color=purple,mark=none,discardMsr if not={AmPm}{am}
+      ] table[x=Date,y=Sys,col sep=semicolon] {\mycsv};
+      \addplot+[color=blue,only marks,mark=square,discardAvg if not={AmPm}{am}] table[x=Date,y=Dia,col sep=semicolon] {\mycsv};
+      \addplot+[draw=none,forget plot,mark=none,discardAvg if not={AmPm}{pm}] table[x=Date,y=Dia,col sep=semicolon] {\mycsv};
+      \addplot+[color=blue,mark=none,discardMsr if not={AmPm}{am}] table[x=Date,y=Dia,col sep=semicolon] {\mycsv};
+      \legend{\mylangsys,(\mylangavg),\mylangdia,(\mylangavg)}
+    \end{axis}
+  \end{tikzpicture}
+  \fi
+  \ifpm
+  \begin{tikzpicture}
+    \pgfplotsset{every axis legend/.append style={
+        at={(0.5,1.03)},
+        anchor=south west}}
+    \begin{axis}[
+      width=0.9\textwidth,
+      height=0.40\textwidth,
+      title=\mylangpressevening,
+      title style={xshift=-2cm},
+      legend columns=-1,
+      date coordinates in=x,
+      xticklabel style={rotate=45,anchor=east},
+      xticklabel=\day-\month,
+      date ZERO=2015-11-01,
+      extra y tick style={grid=major},
+      extra y ticks={85,135},
+      extra y tick labels={},
+      ytick={60,80,100,120,140,160},
+      ylabel=\mylangmmhg]
+      \addplot+[color=purple,only marks,
+      	mark=o,discardAvg if not={AmPm}{pm}
+      ] table[x=Date,y=Sys,col sep=semicolon] {\mycsv};
+      \addplot[draw=none,forget plot,
+      	mark=none,discardAvg if not={AmPm}{am}
+      ] table[x=Date,y=Sys,col sep=semicolon] {\mycsv};
+      \addplot+[color=purple,mark=none,discardMsr if not={AmPm}{pm}
+      ] table[x=Date,y=Sys,col sep=semicolon] {\mycsv};
+      \addplot+[color=blue,only marks,mark=square,discardAvg if not={AmPm}{pm}] table[x=Date,y=Dia,col sep=semicolon] {\mycsv};
+      \addplot+[draw=none,mark=none,forget plot,discardAvg if not={AmPm}{am}] table[x=Date,y=Dia,col sep=semicolon] {\mycsv};
+      \addplot+[color=blue,mark=none,discardMsr if not={AmPm}{pm}] table[x=Date,y=Dia,col sep=semicolon] {\mycsv};
+      \legend{\mylangsys,(\mylangavg),\mylangdia,(\mylangavg)}
+    \end{axis}
+  \end{tikzpicture}
+  \fi
+  \centering
+  \begin{tikzpicture}
+    \begin{axis}[
+      width=0.9\textwidth,
+      height=0.30\textwidth,
+      title=\mylangpulse,
+      legend pos=outer north east,
+      date coordinates in=x,
+      xticklabel style={rotate=45,anchor=east},
+      xticklabel=\day-\month,
+      date ZERO=2015-11-01,
+      ylabel=\mylangpermin]
+      \addplot[draw=none,mark=none,forget plot] table[x=Date,y=Pulse,col sep=semicolon] {\mycsv};
+      \addplot+[red,only marks,mark=diamond,discardAvg if={p4}{manuel}] table[x=Date,y=Pulse,col sep=semicolon] {\mycsv};
+      \addplot+[red,mark=none,discardMsr if={p4}{manuel}] table[x=Date,y=Pulse,col sep=semicolon] {\mycsv};
+      %\legend{\mylangpulse}
+    \end{axis}
+  \end{tikzpicture}
+}]
+\pgfplotstabletypeset[
+    columns={Date,Typ,Sys,Dia,Pulse},
+    %columns/Date/.style={date type={\day/\month/\year}},
+    columns/Date/.style={string type,
+      column name={\mylangdate},
+    },
+    columns/Typ/.style={string type,
+      column name={\mylangtyp},
+      postproc cell content/.append code={
+        \edef\tempa{##1}
+        \edef\tempb{avg}
+        \ifx\tempa\tempb
+        \pgfkeyssetvalue{/pgfplots/table/@cell content}{\cellcolor{lightgray}{\mylangavg}}
+        \else
+        \pgfkeyssetvalue{/pgfplots/table/@cell content}{\mylangmsr}
+        \fi}
+    },
+    columns/Sys/.style={
+      column name={\mylangsys},
+      postproc cell content/.append code={
+        \edef\tempa{##1}
+        \ifnum ##1 > 135
+        \pgfkeyssetvalue{/pgfplots/table/@cell content}{\textcolor{red}{##1}}
+        \fi}
+    },
+    columns/Dia/.style={
+      column name={\mylangdia},
+      postproc cell content/.append code={
+        \edef\tempa{##1}
+        \ifnum ##1 > 85
+        \pgfkeyssetvalue{/pgfplots/table/@cell content}{\textcolor{red}{##1}}
+        \fi}
+    },
+    columns/Pulse/.style={
+      column name={\mylangpulse},
+      postproc cell content/.append code={
+        \edef\tempa{##1}
+        \edef\tempb{60.1}
+        \ifx\tempa\tempb
+        \pgfkeyssetvalue{/pgfplots/table/@cell content}{--}
+        \fi}
+    },
+    col sep=semicolon
+] {\mycsv}
+\end{document}
